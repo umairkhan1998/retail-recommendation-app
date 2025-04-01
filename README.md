@@ -1,4 +1,4 @@
-# retail-recommendation-app
+# Retail-recommendation-app
 
 # Project Description: Retail Item Recommendation System
 
