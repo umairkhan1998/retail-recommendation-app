@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Recommendation System</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header {
+            text-align: center;
+            border: 1px solid #333;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .content-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+        }
+        .box {
+            border: 1px solid #333;
+            border-radius: 25px;
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 300px;
+        }
+        .analytics-box {
+            border: 1px solid #333;
+            border-radius: 25px;
+            padding: 20px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        h1 {
+            margin: 0;
+            color: #333;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 30px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+        button {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .recommendations-list {
+            margin-top: 30px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        li {
+            background: #f1f1f1;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-id {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .item-name {
+            color: #555;
+        }
+        .similarity {
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+    <!-- Add Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Retail Store</h1>
+        </div>
+
+        <!-- Content Row -->
+        <div class="content-row">
+            <!-- Left Box: Trending Items -->
+            <div class="box">
+                <h2>Top Trending Items</h2>
+                <ul>
+                    {% for item in trending_items %}
+                        <li>
+                            <span class="item-name">{{ item.item_name }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Center Box: Recommendations -->
+            <div class="box">
+                <h2>Recommendations</h2>
+                <form action="/recommend" method="post" class="form-group">
+                    <input type="text" id="item_id" name="item_id" placeholder="Enter Item ID" required>
+                    <button type="submit">Get Recommendations</button>
+                </form>
+
+                {% if error %}
+                    <p class="error">{{ error }}</p>
+                {% endif %}
+
+                {% if similar_items %}
+                    <div class="recommendations-list">
+                        <ul>
+                            {% for item in similar_items %}
+                                <li>
+                                    <span class="item-name">{{ item.item_name }}</span>
+                                    <span class="similarity">({{ item.similarity }})</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Box: Associations -->
+            <div class="box">
+                <h2>ASSOCIATIONS</h2>
+                <ul>
+                    {% for rule in rules %}
+                        <li>
+                            <span>{{ rule['antecedents'] }} → {{ rule['consequents'] }}</span>
+                            <span class="similarity">(Lift: {{ rule['lift'] }})</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- Analytics Box -->
+        <div class="analytics-box">
+            <h2>Analytics</h2>
+            <canvas id="salesChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Get the sales data from the template
+        const salesData = {{ sales_data | tojson | safe }};
+
+        // Render the chart if sales data is available
+        if (salesData.labels && salesData.labels.length > 0) {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: salesData.labels,
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: salesData.quantities,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    layout: {
+                        padding: {
+                            left: 10  // Reduce left padding
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                display: false  // Hide x-axis labels
+                            }
+                        },
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } else {
+            // Display a message if no data is available
+            document.getElementById('salesChart').innerHTML = '<p>No sales data available for recommended items.</p>';
+        }
+    </script>
+</body>
+</html>
